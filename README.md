@@ -6,10 +6,14 @@ Primary Contacts: Maddie Betts (mmbetts03@gmail.com), Emmanuel Frimpong (frimp@v
 
 ## Background
 
-Bluehead chub (*Nocomis leptocephalus*) is a species of Leuciscid common across the southeast United States. They are known for the large, mounded nests they construct out of streambed pebbles that attract other species of Leuciscids as "nest associates." Nest associates will spawn with bluehead chub; the relationship between bluehead chub and nest associates is thought to be mutualistic, however, mutualisms are inherently selfish interactions, with all participating parties attempting to benefit without cost. We investigated the distribution of different species' embyros on nests of bluehead chub to determine if the chub is disproportionately benefiting from the relationship by positioning its embryos such that those of its nest associates are forced to the less-desirable periphery. 
+Bluehead chub (*Nocomis leptocephalus*) is a species of Leuciscid common across the southeast United States. They are known for the large, mounded nests they construct out of streambed pebbles that attract other species of Leuciscids as "nest associates," which spawn with bluehead chub. The relationship between bluehead chub and nest associates is thought to be mutualistic, however, mutualisms are inherently selfish interactions, with all participating parties attempting to benefit without cost. We investigated the distribution of different species' embyros on nests of bluehead chub to determine if the chub is disproportionately benefiting from the relationship by positioning its embryos such that those of its nest associates are forced to the less-desirable nest periphery. 
 
 ## Objective
 
+The objective of this study was to determine whether certain species in the heterospecific spawning aggregation on a chub nest predominantly benefit from the embryo-burying behaviors of the host as opposed to a random mix of embryo that would afford every participant an equal predation-dilution benefit.
+
 ## Methods
+
+
 
 ## R
