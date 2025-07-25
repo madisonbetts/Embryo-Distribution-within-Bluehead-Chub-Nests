@@ -113,10 +113,10 @@ summary_stats <- dividednests %>%
 print(summary_stats)
 
 #let's investigate how embryos are distributed across nest sections, using AICcmodavg R package and adjusted embryo counts, with nest as a random effect
-a0 = glmer(cbind(sectionembryos, totnesteggs-sectionembryos) ~ (1|nest), family=binomial(link = "logit"), data=dividednests) #null model
-a1 = glmer(cbind(sectionembryos, totnesteggs-sectionembryos) ~ (1|nest)+bottom+top, family=binomial(link = 'logit'), data=dividednests) #vertical gradient
-a2 = glmer(cbind(sectionembryos, totnesteggs-sectionembryos) ~ (1|nest)+upstream, family=binomial(link = 'logit'), data=dividednests) #horizontal gradient
-a3 = glmer(cbind(sectionembryos, totnesteggs-sectionembryos) ~ (1|nest)+MU+MD+BD+BU+TU, family=binomial(link = 'logit'), data=dividednests) #vertical and horizontal gradient
+a0 = glmer(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest), family=binomial(link = "logit"), data=dividednests) #null model
+a1 = glmer(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest)+bottom+top, family=binomial(link = 'logit'), data=dividednests) #vertical gradient
+a2 = glmer(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest)+upstream, family=binomial(link = 'logit'), data=dividednests) #horizontal gradient
+a3 = glmer(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest)+MU+MD+BD+BU+TU, family=binomial(link = 'logit'), data=dividednests) #vertical and horizontal gradient
 
 summary(a3)
 
