@@ -8,7 +8,9 @@ Primary Contacts: Maddie Betts (mmbetts03@gmail.com), Emmanuel Frimpong (frimp@v
 
 Bluehead chub (*Nocomis leptocephalus*) is a species of Leuciscid common across the southeast United States. They are known for the large, mounded nests they construct out of streambed pebbles that attract other species of Leuciscids as "nest associates," which spawn with bluehead chub. The relationship between bluehead chub and nest associates is thought to be mutualistic, however, mutualisms are inherently selfish interactions, with all participating parties attempting to benefit without cost. We investigated the distribution of different species' embyros on nests of bluehead chub to determine if the chub is disproportionately benefiting from the relationship by positioning its embryos such that those of its nest associates are forced to the less-desirable nest periphery. 
 
-![bluehead chub tending its nest](chubpic.JPG).
+![bluehead chub tending its nest](chubpic.JPG)
+
+*A bluehead chub sets a stone on its nest, amidst a swarm of nest associates.*
 
 ## Objective
 
