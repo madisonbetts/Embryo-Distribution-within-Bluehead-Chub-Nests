@@ -2,7 +2,7 @@
 
 The following repository contains data, code, and information related to a study conducted by the Frimpong Lab at Virginia Tech, which investigated the distribution of Leuciscid embryos within bluehead chub nests in Toms Creek, near Blacksburg, VA, USA from 2021-2023.
 
-Primary Contacts: Maddie Betts (mmbetts03@gmail.com), Emmanuel Frimpong (frimp@vt.edu)
+### Primary Contacts: Maddie Betts (mmbetts03@gmail.com), Emmanuel Frimpong (frimp@vt.edu)
 
 ## Background
 
@@ -18,9 +18,14 @@ The objective of this study was to determine whether certain species in the hete
 
 ## Navigation of Repository
 
+| File | Contents |
+| --- | --- |
+| embryo_distribution.xlsx | Raw data and preliminary statistics associated with genetics sequencing, nest division field sampling, and larval proportions, see readme tab for details  |
+| embryo_distribution.R | Code used for anlaysis of embryonic distribution, and larval distribution within nests |
+
 ## Associated Publications
 
-*This section of the readme will be updated once the manuscript has been fully accepted into a journal*
+*This section of the readme will be updated once the manuscript has been fully accepted into a journal.*
 
 ## Funding and Acknowledgments
 
