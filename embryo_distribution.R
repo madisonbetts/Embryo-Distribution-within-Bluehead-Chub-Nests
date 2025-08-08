@@ -5,12 +5,14 @@ install.packages("dplyr")
 install.packages("AICcmodavg")
 #install.packages("Rtools")
 install.packages("lme4")
+install.packages("MuMIn")
 library(readxl)
 library(ggplot2)
 library(dplyr)
 library(AICcmodavg)
 #library(Rtools)
 library(lme4)
+library(MuMIn)
 
 #read in excel sheets
 dividednests <- read_excel("embryo_distribution.xlsx", sheet = "prop_eggsgrav")
@@ -95,7 +97,7 @@ densityadjusted <- ggplot(dividednests, aes(x = compartment, y = adjembryoct)) +
 
 densityadjusted
 
-#print summary statistics of adjusted embyro counts by compartment 
+#print summary statistics of adjusted embryo counts by compartment 
 dividednests$compartment <- factor(dividednests$compartment,
                                    levels = c("1", "2", "3", "4", "5", "6"),
                                    labels = c("TD", "MD", "BD", "TU", "MU", "BU"))
@@ -123,7 +125,166 @@ summary(a3)
 cmods=list(a0,a1,a2,a3) 
 Modnames=c("Null Model","Vertical Gradient Model","Horizontal Gradient Model","Vertical and Horizontal Gradient Model") 
 print(aictab(cand.set = cmods, modnames = Modnames, second.ord = TRUE), digits = 2)
+###############################################################################
+#lets remove the random effect since it is not affecting the models - this removes the issue of singularity
 
+# Null model (no predictors)
+a0_glm = glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ 1,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+# Vertical gradient: bottom + top
+a1_glm = glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ bottom + top,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+# Horizontal gradient: upstream
+a2_glm = glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ upstream,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+# Vertical and horizontal gradient: MU + MD + BD + BU + TU
+a3_glm = glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ MU + MD + BD + BU + TU,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+summary(a3_glm)
+
+cmods_glm=list(a0_glm,a1_glm,a2_glm,a3_glm) 
+Modnames_glm=c("Null Model","Vertical Gradient Model","Horizontal Gradient Model","Vertical Horizontal Gradient Model") 
+print(aictab(cand.set = cmods_glm, modnames = Modnames_glm, second.ord = TRUE), digits = 2)
+
+library(broom)
+
+# Now extract tidy parameter summaries with CIs for all models
+model_summaries <- lapply(seq_along(cmods_glm), function(i) {
+  broom::tidy(cmods_glm[[i]], conf.int = TRUE, conf.level = 0.95) %>%
+    mutate(Model = Modnames_glm[i])
+})
+
+# Combine into one data frame
+all_params <- dplyr::bind_rows(model_summaries) %>%
+  dplyr::select(Model, term, estimate, conf.low, conf.high) %>%
+  dplyr::rename(
+    Variable = term,
+    Estimate = estimate,
+    CI_lower = conf.low,
+    CI_upper = conf.high
+  )
+
+print(all_params)
+
+# add odds ratios to the table
+all_params_or <- all_params %>%
+  mutate(
+    OR = exp(Estimate),
+    OR_lower = exp(CI_lower),
+    OR_upper = exp(CI_upper)
+  )
+
+print(all_params_or)
+
+#calculate relative variable importance as according to IT framework
+cand.set <- list(
+  Null_Model = a0_glm,
+  Vertical_Gradient_Model = a1_glm,
+  Horizontal_Gradient_Model = a2_glm,
+  Vertical_Horizontal_Gradient_Model = a3_glm
+)
+
+# Calculate variable importance
+sw_results <- sw(cand.set)
+
+# View the results
+print(sw_results)
+
+#combine with parameters table
+library(tibble)
+
+# Make sure your params_tbl has a column named "Variable"
+# and that sw_results is a named numeric vector
+
+# Turn sw_results (importance scores) into a tibble
+importance_tbl <- enframe(sw_results, name = "Variable", value = "Importance")
+
+# Join the tables by Variable
+final_tbl <- all_params_or %>%
+  left_join(importance_tbl, by = "Variable") %>%
+  relocate(Importance, .after = OR_upper)  # Put importance after ORs
+
+# Optional: replace NA with "<0.01" for cleaner presentation
+final_tbl <- final_tbl %>%
+  mutate(Importance = ifelse(is.na(Importance), "<0.01", round(Importance, 2)))
+
+# View result
+print(final_tbl)
+##############################################################################
+#Get R² for all models using MuMIn
+a_r2_mumin <- lapply(cmods, MuMIn::r.squaredGLMM)
+names(a_r2_mumin) <- Modnames
+
+for (i in seq_along(a_r2_mumin)) {
+  cat(Modnames[i], ":\n")
+  print(a_r2_mumin[[i]])
+  cat("\n")
+}
+
+# Check for singularity
+isSingular(a3)  # Should return FALSE
+
+# Check overdispersion
+a_overdisp_fun <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model, type = "pearson")
+  Pearson.chisq <- sum(rp^2)
+  ratio <- Pearson.chisq / rdf
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
+  c(chisq = Pearson.chisq, ratio = ratio, rdf = rdf, p = pval)
+}
+a_overdisp_fun(a3)
+
+#let's address the issue with the random effect and overdispersion
+install.packages("glmmTMB")
+library(glmmTMB)
+
+a0_tmb <- glmmTMB(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest),
+                  family = betabinomial(link = "logit"), data = dividednests)#null model
+a1_tmb <- glmmTMB(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest)+bottom+top,
+                  family = betabinomial(link = "logit"), data = dividednests)#vertical gradient
+a2_tmb <- glmmTMB(cbind(sectionembryos, totnestembryos-sectionembryos) ~ (1|nest)+upstream,
+                  family = betabinomial(link = "logit"), data = dividednests)#horizontal gradient
+a3_tmb <- glmmTMB(cbind(sectionembryos, totnestembryos - sectionembryos) ~ MU + MD + BD + BU + TU + (1|nest),
+                  family = betabinomial(link = "logit"), data = dividednests)#vertical and horizontal gradient
+
+summary(a3_tmb)
+cmods=list(a0_tmb,a1_tmb,a2_tmb,a3_tmb) 
+Modnames_tmb=c("Null Model","Vertical Gradient Model","Horizontal Gradient Model","Vertical and Horizontal Gradient Model") 
+print(aictab(cand.set = cmods, modnames = Modnames_tmb, second.ord = TRUE), digits = 2)
+
+# Marginal/conditional R² for glmmTMB
+library(performance)
+r2(a3_tmb)
+#Check fixed-effect collinearity
+library(performance)
+check_collinearity(a3_tmb) #want VIF<5
+
+#inspect fixed effects for NA estimates
+summary(a3_tmb)$varcor
+
+# Check overdispersion
+a_tmb_overdisp_fun <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model, type = "pearson")
+  Pearson.chisq <- sum(rp^2)
+  ratio <- Pearson.chisq / rdf
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
+  c(chisq = Pearson.chisq, ratio = ratio, rdf = rdf, p = pval)
+}
+a_overdisp_fun(a3)
+
+# Confidence intervals
+confint(a3_tmb)
+################################################################################
 #now let's look into how host, associate, and manipulator embryos are distributed across a nest
 
 #plot how density of host embryos changes by nest section
