@@ -1,0 +1,444 @@
+---
+title: "Embryo Distribution within Bluehead Chub Nests"
+author: "Madison Betts and Emmanuel Frimpong"
+date: "8/21/25"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+This analysis examines how embryos are distributed across different compartments within fish nests. The study investigates spatial patterns and the distribution of different embryo types (host, associate, manipulator) across nest sections.
+
+# Package Installation and Loading
+
+```{r packages, results='hide'}
+# Install required packages (run once)
+packages <- c("readxl", "ggplot2", "dplyr", "AICcmodavg", "lme4", "MuMIn", 
+              "broom.mixed", "broom", "lmerTest", "emmeans", "pbkrtest")
+
+# Check if packages are installed, install if not
+new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
+
+# Load all packages
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(AICcmodavg)
+library(lme4)
+library(MuMIn)
+library(broom.mixed)
+library(broom)
+library(lmerTest)
+library(emmeans)
+library(pbkrtest)
+
+# Set options
+options(prompt = "=")
+```
+
+# Data Import and Preparation
+
+```{r data-import}
+# Read in excel sheets
+dividednests <- read_excel("embryo_distribution.xlsx", sheet = "prop_eggsgrav")
+genetics <- read_excel("embryo_distribution.xlsx", sheet = "genetics_analysis", na = "#N/A")
+larv <- read_excel("embryo_distribution.xlsx", sheet = "larv_analysis")
+
+# Display data structure
+cat("Divided nests data dimensions:", dim(dividednests), "\n")
+cat("Genetics data dimensions:", dim(genetics), "\n")
+cat("Larvae data dimensions:", dim(larv), "\n")
+```
+
+```{r data-prep}
+# Assign compartments as factors
+dividednests$compartment <- factor(dividednests$compartment, 
+                                 levels = c("TD", "MD", "BD", "TU", "MU", "BU"), 
+                                 labels = c('1', '2', '3', '4', '5', '6'))
+```
+
+# Exploratory Data Analysis
+
+## Embryo Density Across Compartments
+
+```{r embryo-density-plot}
+# Visualize how embryo density varies across compartments
+embryodensity <- ggplot(dividednests, aes(x = compartment, y = propembryoct)) +
+  geom_boxplot(fill = "grey", notch = FALSE, position = position_dodge(preserve = "single")) +
+  scale_x_discrete(labels = c("TD", "MD", "BD", "TU", "MU", "BU")) +
+  labs(
+    x = "Nest Section",
+    y = "Volume of Eggs (%)",
+    title = "Embryo Density by Nest Compartment"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 15),
+    plot.title = element_text(size = 15, hjust = 0.5)
+  )
+
+embryodensity
+```
+
+## Relationship Between Nest Volume and Egg Volume
+
+```{r volume-relationship}
+# Scatter plot showing relationship between nest volume and egg volume
+plot(dividednests$propnestvol, dividednests$propembryoct, 
+     main = "Relationship between Nest Volume and Egg Volume", 
+     xlab = "Nest Section Volume (%)", 
+     ylab = "Egg Volume (%)", 
+     pch = 2, cex = 1.5, cex.lab = 1.5)
+abline(lm(dividednests$propembryoct ~ dividednests$propnestvol), col = "red") 
+lines(lowess(dividednests$propembryoct, dividednests$propnestvol), col = "blue")
+legend("topright", c("Linear fit", "Lowess fit"), col = c("red", "blue"), lty = 1)
+```
+
+## Actual vs. Target Nest Volumes
+
+```{r nest-volume-comparison}
+# Compare sampled nest volume vs targeted volume
+compare_gravvol <- ggplot(dividednests, aes(x = compartment, y = propnestvol)) +
+  geom_boxplot(fill = "grey", notch = FALSE) +
+  geom_hline(yintercept = 16.6, color = "blue", linewidth = 1.2, linetype = "dotted") +
+  scale_x_discrete(labels = c("TD", "MD", "BD", "TU", "MU", "BU")) +
+  labs(
+    title = "Actual nest volumes sampled vs targeted 16.6% per section",
+    x = "Nest Section",
+    y = "Volume of Gravel (%)"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 15),
+    plot.title = element_text(size = 15, hjust = 0.5)
+  )
+
+compare_gravvol
+```
+
+## Adjusted Embryo Density
+
+```{r adjusted-density-plot}
+# Plot showing egg density adjusted for sampled gravel volume
+densityadjusted <- ggplot(dividednests, aes(x = compartment, y = adjembryoct)) +
+  geom_boxplot(fill = "grey", notch = FALSE, position = position_dodge(preserve = "single")) +
+  scale_x_discrete(labels = c("TD", "MD", "BD", "TU", "MU", "BU")) +
+  labs(
+    x = "Nest Section",
+    y = "Adjusted Volume of Embryos (%)",
+    title = "Adjusted Embryo Density by Nest Compartment"
+  ) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black"),
+    text = element_text(size = 15),
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 15),
+    plot.title = element_text(size = 15, hjust = 0.5)
+  )
+
+densityadjusted
+```
+
+```{r summary-stats}
+# Convert compartment back to meaningful labels for summary
+dividednests$compartment <- factor(dividednests$compartment,
+                                 levels = c("1", "2", "3", "4", "5", "6"),
+                                 labels = c("TD", "MD", "BD", "TU", "MU", "BU"))
+
+# Summary statistics of adjusted embryo counts by compartment 
+summary_stats <- dividednests %>%
+  group_by(compartment) %>%
+  summarise(
+    n = sum(!is.na(adjembryoct)),
+    mean = mean(adjembryoct, na.rm = TRUE),
+    sd = sd(adjembryoct, na.rm = TRUE),
+    se = sd / sqrt(n),
+    median = median(adjembryoct, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+print(summary_stats)
+```
+
+# Embryo Distribution Modeling
+
+## Initial Mixed-Effects Models (with singularity issues)
+
+```{r initial-models, results='hide'}
+# Initial models with random effects (these show singularity warnings)
+a0 <- glmer(cbind(sectionembryos, totnestembryos - sectionembryos) ~ (1|nest), 
+           family = binomial(link = "logit"), data = dividednests)
+a1 <- glmer(cbind(sectionembryos, totnestembryos - sectionembryos) ~ (1|nest) + bottom + top, 
+           family = binomial(link = 'logit'), data = dividednests)
+a2 <- glmer(cbind(sectionembryos, totnestembryos - sectionembryos) ~ (1|nest) + upstream, 
+           family = binomial(link = 'logit'), data = dividednests)
+a3 <- glmer(cbind(sectionembryos, totnestembryos - sectionembryos) ~ (1|nest) + MU + MD + BD + BU + TU, 
+           family = binomial(link = 'logit'), data = dividednests)
+
+# Check for singularity
+cmods <- list(a0, a1, a2, a3)
+singularity_check <- sapply(cmods, isSingular)
+cat("Singularity check for mixed models:", singularity_check, "\n")
+```
+
+## Fixed-Effects Models (corrected)
+
+```{r fixed-effects-models}
+# Fixed-effects models without random effects to address singularity
+a0_glm <- glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ 1,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+a1_glm <- glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ bottom + top,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+a2_glm <- glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ upstream,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+a3_glm <- glm(cbind(sectionembryos, totnestembryos - sectionembryos) ~ MU + MD + BD + BU + TU,
+             family = binomial(link = "logit"),
+             data = dividednests)
+
+# Model comparison
+cmods_glm <- list(a0_glm, a1_glm, a2_glm, a3_glm)
+Modnames_glm <- c("Null Model", "Vertical Gradient Model", "Horizontal Gradient Model", "Vertical and Horizontal Gradient Model")
+
+print(aictab(cand.set = cmods_glm, modnames = Modnames_glm, second.ord = TRUE), digits = 2)
+```
+
+```{r model-summaries}
+# Extract parameter summaries with confidence intervals
+model_summaries <- lapply(seq_along(cmods_glm), function(i) {
+  broom::tidy(cmods_glm[[i]], conf.int = TRUE, conf.level = 0.95) %>%
+    mutate(Model = Modnames_glm[i])
+})
+
+# Combine into one data frame
+all_params <- dplyr::bind_rows(model_summaries) %>%
+  dplyr::select(Model, term, estimate, conf.low, conf.high) %>%
+  dplyr::rename(
+    Variable = term,
+    Estimate = estimate,
+    CI_lower = conf.low,
+    CI_upper = conf.high
+  )
+
+# Add odds ratios
+all_params_or <- all_params %>%
+  mutate(
+    OR = exp(Estimate),
+    OR_lower = exp(CI_lower),
+    OR_upper = exp(CI_upper)
+  )
+
+print(all_params_or)
+```
+
+```{r variable-importance}
+# Calculate relative variable importance
+cand.set <- list(
+  Null_Model = a0_glm,
+  Vertical_Gradient_Model = a1_glm,
+  Horizontal_Gradient_Model = a2_glm,
+  Vertical_Horizontal_Gradient_Model = a3_glm
+)
+
+sw_results <- sw(cand.set)
+print(sw_results)
+```
+
+# Genetic Analysis: Host vs Associate Embryos
+
+## Visualization of Genetic Types
+
+```{r genetic-plots}
+# Plot host embryo distribution
+hostembryo <- ggplot(genetics, aes(x = compartment, y = host_perc)) +
+  geom_boxplot(fill = "grey", notch = FALSE, position = position_dodge(preserve = "single")) +
+  scale_x_discrete(labels = c("TD", "MD", "BD", "TU", "MU", "BU")) +
+  labs(
+    x = "Nest Compartment",
+    y = "Host Embryo (%)",
+    title = "Proportion of Host Embryos by Nest Compartment"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 15),
+    plot.title = element_text(size = 15, hjust = 0.5)
+  )
+
+hostembryo
+
+# Plot manipulator embryo distribution
+manipembryo <- ggplot(genetics, aes(x = compartment, y = manip_perc)) + 
+  geom_boxplot(fill = "grey", notch = FALSE, position = position_dodge(preserve = "single")) +
+  scale_x_discrete(labels = c("TD", "MD", "BD", "TU", "MU", "BU")) +
+  labs(
+    x = "Nest Compartment",
+    y = "Manipulator Embryo (%)",
+    title = "Proportion of Manipulator Embryos by Nest Compartment"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 15),
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 15),
+    plot.title = element_text(size = 15, hjust = 0.5)
+  )
+
+manipembryo
+```
+
+## Host vs Associate Distribution Analysis
+
+```{r host-associate-models}
+# Models for host vs associate distribution
+b0 <- glmer(cbind(host_total, associate_total) ~ (1|nest), 
+           family = binomial(link='logit'), data = genetics)
+b1 <- glmer(cbind(host_total, associate_total) ~ (1|nest) + MD + MU + BD + BU + TU, 
+           family = binomial(link='logit'), data = genetics)
+b2 <- glmer(cbind(host_total, associate_total) ~ (1|nest) + bottom + top, 
+           family = binomial(link='logit'), data = genetics)
+b3 <- glmer(cbind(host_total, associate_total) ~ (1|nest) + upstream, 
+           family = binomial(link='logit'), data = genetics)
+
+cmods_b <- list(b0, b1, b2, b3)
+Modnames_b <- c("Null Model", "Compartment Model", "Vertical Gradient Model", "Horizontal Gradient Model")
+
+# Check singularity
+cat("Singularity check for host/associate models:", sapply(cmods_b, isSingular), "\n")
+
+# AIC model selection
+print(aictab(cand.set = cmods_b, modnames = Modnames_b, second.ord = TRUE), digits = 2)
+```
+
+```{r host-associate-summaries}
+# Parameter summaries with CIs
+b_summaries <- lapply(seq_along(cmods_b), function(i) {
+  broom.mixed::tidy(cmods_b[[i]], effects = "fixed", conf.int = TRUE, conf.level = 0.95) %>%
+    mutate(Model = Modnames_b[i])
+})
+
+b_all <- dplyr::bind_rows(b_summaries) %>%
+  dplyr::select(Model, term, estimate, conf.low, conf.high) %>%
+  dplyr::rename(
+    Variable = term,
+    Estimate = estimate,
+    CI_lower = conf.low,
+    CI_upper = conf.high
+  ) %>%
+  mutate(
+    OR = exp(Estimate),
+    OR_lower = exp(CI_lower),
+    OR_upper = exp(CI_upper)
+  )
+
+print(b_all)
+
+# Variable importance
+sw_b <- sw(cmods_b)
+print(sw_b)
+```
+
+## Manipulator vs Non-manipulator Analysis
+
+```{r manipulator-models}
+# Models for manipulator vs non-manipulator distribution
+c0 <- glmer(cbind(manipulator_total, nonmanipulator_total) ~ (1|nest), 
+           family = binomial(link='logit'), data = genetics)
+c1 <- glmer(cbind(manipulator_total, nonmanipulator_total) ~ (1|nest) + MD + MU + BD + BU + TU, 
+           family = binomial(link='logit'), data = genetics)
+c2 <- glmer(cbind(manipulator_total, nonmanipulator_total) ~ (1|nest) + bottom + top, 
+           family = binomial(link='logit'), data = genetics)
+c3 <- glmer(cbind(manipulator_total, nonmanipulator_total) ~ (1|nest) + upstream, 
+           family = binomial(link='logit'), data = genetics)
+
+cmods_c <- list(c0, c1, c2, c3)
+Modnames_c <- c("Null Model", "Compartment Model", "Vertical Gradient Model", "Horizontal Gradient Model")
+
+# Check singularity
+cat("Singularity check for manipulator models:", sapply(cmods_c, isSingular), "\n")
+
+# AIC model selection
+print(aictab(cand.set = cmods_c, modnames = Modnames_c, second.ord = TRUE), digits = 2)
+```
+
+```{r manipulator-summaries}
+# Parameter summaries with CIs
+c_summaries <- lapply(seq_along(cmods_c), function(i) {
+  broom.mixed::tidy(cmods_c[[i]], effects = "fixed", conf.int = TRUE, conf.level = 0.95) %>%
+    mutate(Model = Modnames_c[i])
+})
+
+c_all <- dplyr::bind_rows(c_summaries) %>%
+  dplyr::select(Model, term, estimate, conf.low, conf.high) %>%
+  dplyr::rename(
+    Variable = term,
+    Estimate = estimate,
+    CI_lower = conf.low,
+    CI_upper = conf.high
+  ) %>%
+  mutate(
+    OR = exp(Estimate),
+    OR_lower = exp(CI_lower),
+    OR_upper = exp(CI_upper)
+  )
+
+print(c_all)
+
+# Variable importance
+sw_c <- sw(cmods_c)
+print(sw_c)
+```
+
+# Larvae vs Embryo Distribution Analysis
+
+```{r larvae-analysis}
+# Compare larvae and egg proportions across nest sections
+larvmodel <- lmer(larv_prop ~ compartment + (1 | nest), data = larv)
+summary(larvmodel)
+
+# Pairwise comparisons using Tukey HSD
+larv_pairwise <- emmeans(larvmodel, pairwise ~ compartment, adjust = "tukey")
+print(larv_pairwise)
+
+# Extract comparison summary with confidence intervals
+larv_comparisons <- larv_pairwise$contrasts
+larv_comparisons_summary <- summary(larv_pairwise$contrasts, infer = c(TRUE, TRUE))
+print(larv_comparisons_summary[, c("contrast", "estimate", "lower.CL", "upper.CL")])
+```
+
+# Summary and Conclusions
+
+Our analysis examined the spatial distribution of embryos within bluehead chub nests across different compartments. Key findings include:
+
+1. **Embryo Distribution**: The analysis revealed significant spatial patterns in embryo distribution across nest compartments.
+
+2. **Model Selection**: Fixed-effects models were preferred over mixed-effects for modeling embryo distribution due to singularity issues with the random effect structure.
+
+3. **Species Distribution Patterns**: Different patterns were observed for host, associate, nonmanipulator, and manipulator embryos across nest compartments.
+
+4. **Larvae vs Embryos**: Pairwise comparisons revealed significant differences in larval proportions between some nest compartments.
+
+This analysis shows spatial patterns in embryo distribution within bluehead chub nests and supports the existence of an embryonic selfish herd.
