@@ -22,6 +22,7 @@ The objective of this study was to determine whether certain species in the hete
 | --- | --- |
 | embryo_distribution.xlsx | Raw data and preliminary statistics associated with genetics sequencing, nest division field sampling, and larval proportions, see readme tab for details  |
 | embryo_distribution.Rmd | Code used for anlaysis of embryonic distribution, and larval distribution within nests |
+| embryo_distribution.R | Raw R file with original code used to create R markdown file |
 
 ## Associated Publications
 
